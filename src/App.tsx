@@ -452,7 +452,16 @@ export default function App() {
   }
 async function saveSharedGroceryList() {
   try {
-    await setDoc(sharedGroceryDocRef, { grocery });
+    const cleanedGrocery = grocery.map((item) => ({
+      quantity: item.quantity ?? "",
+      unit: item.unit ?? "",
+      name: item.name ?? "",
+      completed: !!item.completed,
+      ...(item.category ? { category: item.category } : {}),
+      ...(item.aisle ? { aisle: item.aisle } : {}),
+    }));
+
+    await setDoc(sharedGroceryDocRef, { grocery: cleanedGrocery });
     setStatusMessage("Shared grocery list saved.");
   } catch (error) {
     console.error("Failed to save shared grocery list:", error);
