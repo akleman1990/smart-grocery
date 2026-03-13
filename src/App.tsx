@@ -790,7 +790,7 @@ async function saveSharedGroceryList(showMessage = true) {
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
   <button
     style={{ ...styles.secondaryButton, minHeight: 44 }}
-    onClick={saveSharedGroceryList}
+   onClick={() => saveSharedGroceryList(true)}
   >
     Save Shared List
   </button>
