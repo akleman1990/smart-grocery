@@ -27,20 +27,7 @@ function parseQuantity(value: string) {
     .reduce((sum, num) => sum + num, 0);
   return Number.isFinite(total) ? total : null;
 }
-async function loadSharedGroceryList() {
-  try {
-    const snapshot = await getDoc(sharedGroceryDocRef);
 
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      if (data.grocery) {
-        setGrocery(data.grocery);
-      }
-    }
-  } catch (error) {
-    console.error("Failed to load shared grocery list:", error);
-  }
-}
 function singularizeWord(word: string) {
   const trimmed = String(word ?? "").trim();
   const lower = trimmed.toLowerCase();
@@ -464,6 +451,24 @@ export default function App() {
   function bumpAnimation() {
     setAnimateKey((v) => v + 1);
   }
+  function bumpAnimation() {
+  setAnimateKey((v) => v + 1);
+}
+
+async function loadSharedGroceryList() {
+  try {
+    const snapshot = await getDoc(sharedGroceryDocRef);
+
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.grocery) {
+        setGrocery(data.grocery);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load shared grocery list:", error);
+  }
+}
 async function saveSharedGroceryList() {
   try {
     const cleanedGrocery = grocery.map((item) => ({
