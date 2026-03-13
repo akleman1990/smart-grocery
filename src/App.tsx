@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
 type Ingredient = {
@@ -27,7 +27,20 @@ function parseQuantity(value: string) {
     .reduce((sum, num) => sum + num, 0);
   return Number.isFinite(total) ? total : null;
 }
+async function loadSharedGroceryList() {
+  try {
+    const snapshot = await getDoc(sharedGroceryDocRef);
 
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.grocery) {
+        setGrocery(data.grocery);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load shared grocery list:", error);
+  }
+}
 function singularizeWord(word: string) {
   const trimmed = String(word ?? "").trim();
   const lower = trimmed.toLowerCase();
@@ -438,6 +451,7 @@ export default function App() {
   }, [dishes]);
 
   useEffect(() => {
+    loadSharedGroceryList();
     localStorage.setItem("grocery", JSON.stringify(grocery));
   }, [grocery]);
 
