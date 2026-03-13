@@ -444,6 +444,10 @@ export default function App() {
 useEffect(() => {
   localStorage.setItem("grocery", JSON.stringify(grocery));
 }, [grocery]);
+useEffect(() => {
+  if (grocery.length === 0) return;
+  saveSharedGroceryList(false);
+}, [grocery]);
 
   useEffect(() => {
     if (!statusMessage) return;
@@ -469,7 +473,7 @@ async function loadSharedGroceryList() {
     console.error("Failed to load shared grocery list:", error);
   }
 }
-async function saveSharedGroceryList() {
+async function saveSharedGroceryList(showMessage = true) {
   try {
     const cleanedGrocery = grocery.map((item) => ({
       quantity: item.quantity ?? "",
@@ -481,14 +485,19 @@ async function saveSharedGroceryList() {
     }));
 
     await setDoc(sharedGroceryDocRef, { grocery: cleanedGrocery });
-    setStatusMessage("Shared grocery list saved.");
+
+    if (showMessage) {
+      setStatusMessage("Shared grocery list saved.");
+    }
   } catch (error) {
     console.error("Failed to save shared grocery list:", error);
 
-    if (error instanceof Error) {
-      setStatusMessage(`Save failed: ${error.message}`);
-    } else {
-      setStatusMessage("Could not save shared grocery list.");
+    if (showMessage) {
+      if (error instanceof Error) {
+        setStatusMessage(`Save failed: ${error.message}`);
+      } else {
+        setStatusMessage("Could not save shared grocery list.");
+      }
     }
   }
 }
