@@ -1,17 +1,19 @@
-// Import the functions you need from the SDKs you need
+// Import Firebase
 import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
+// Your Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCHfz1dggbHhf7KRToNgonJErI2hUv8Qu0",
+  apiKey: "AIzaSyCHFz1dggbhHFfZKRToNgonJErT2hIv80u",
   authDomain: "smart-grocery-planner-702ec.firebaseapp.com",
   projectId: "smart-grocery-planner-702ec",
   storageBucket: "smart-grocery-planner-702ec.firebasestorage.app",
   messagingSenderId: "407588666878",
-  appId: "1:407588666878:web:aa801fb8f0b1aefae854af"
+  appId: "1:407588666878:web:aa801fb8f0b1aeae854af"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore
+export const db = getFirestore(app);
