@@ -456,7 +456,12 @@ async function saveSharedGroceryList() {
     setStatusMessage("Shared grocery list saved.");
   } catch (error) {
     console.error("Failed to save shared grocery list:", error);
-    setStatusMessage("Could not save shared grocery list.");
+
+    if (error instanceof Error) {
+      setStatusMessage(`Save failed: ${error.message}`);
+    } else {
+      setStatusMessage("Could not save shared grocery list.");
+    }
   }
 }
   function resetDishForm() {
