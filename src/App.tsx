@@ -451,9 +451,6 @@ export default function App() {
   function bumpAnimation() {
     setAnimateKey((v) => v + 1);
   }
-  function bumpAnimation() {
-  setAnimateKey((v) => v + 1);
-}
 
 async function loadSharedGroceryList() {
   try {
