@@ -445,8 +445,11 @@ useEffect(() => {
   localStorage.setItem("grocery", JSON.stringify(grocery));
 }, [grocery]);
 useEffect(() => {
-  if (grocery.length === 0) return;
-  saveSharedGroceryList(false);
+  const timeout = window.setTimeout(() => {
+    saveSharedGroceryList(false);
+  }, 300);
+
+  return () => window.clearTimeout(timeout);
 }, [grocery]);
 
   useEffect(() => {
