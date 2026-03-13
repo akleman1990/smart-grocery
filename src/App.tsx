@@ -437,10 +437,13 @@ export default function App() {
     localStorage.setItem("dishes", JSON.stringify(dishes));
   }, [dishes]);
 
-  useEffect(() => {
-    loadSharedGroceryList();
-    localStorage.setItem("grocery", JSON.stringify(grocery));
-  }, [grocery]);
+ useEffect(() => {
+  loadSharedGroceryList();
+}, []);
+
+useEffect(() => {
+  localStorage.setItem("grocery", JSON.stringify(grocery));
+}, [grocery]);
 
   useEffect(() => {
     if (!statusMessage) return;
