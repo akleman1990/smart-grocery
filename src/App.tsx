@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 
 type Ingredient = {
@@ -437,8 +437,10 @@ export default function App() {
     localStorage.setItem("dishes", JSON.stringify(dishes));
   }, [dishes]);
 
- useEffect(() => {
-  loadSharedGroceryList();
+useEffect(() => {
+  const unsubscribe = subscribeToSharedGroceryList();
+
+  return () => unsubscribe();
 }, []);
 
 useEffect(() => {
@@ -450,7 +452,7 @@ useEffect(() => {
   }, 300);
 
   return () => window.clearTimeout(timeout);
-}, [grocery]);
+}, [JSON.stringify(grocery)]);
 
   useEffect(() => {
     if (!statusMessage) return;
@@ -462,19 +464,23 @@ useEffect(() => {
     setAnimateKey((v) => v + 1);
   }
 
-async function loadSharedGroceryList() {
-  try {
-    const snapshot = await getDoc(sharedGroceryDocRef);
-
-    if (snapshot.exists()) {
-      const data = snapshot.data();
-      if (data.grocery) {
-        setGrocery(data.grocery);
+function subscribeToSharedGroceryList() {
+  return onSnapshot(
+    sharedGroceryDocRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.grocery) {
+          setGrocery(data.grocery);
+        } else {
+          setGrocery([]);
+        }
       }
+    },
+    (error) => {
+      console.error("Failed to subscribe to shared grocery list:", error);
     }
-  } catch (error) {
-    console.error("Failed to load shared grocery list:", error);
-  }
+  );
 }
 async function saveSharedGroceryList(showMessage = true) {
   try {
