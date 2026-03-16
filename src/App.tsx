@@ -796,44 +796,35 @@ async function saveSharedGroceryList(showMessage = true) {
               <h1 style={{ margin: "10px 0 6px", fontSize: 38, lineHeight: 1.02, letterSpacing: "-0.03em" }}>Smart Grocery Planner</h1>
               <p style={{ margin: 0, color: "#5C6D63", fontSize: 16 }}>Build dishes quickly, then shop from one clear grocery list.</p>
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-  <button
-    style={{ ...styles.secondaryButton, minHeight: 44 }}
-   onClick={() => saveSharedGroceryList(true)}
-  >
-    Save Shared List
-  </button>
-
-  <button
-    style={{
-      ...styles.button,
-      minWidth: 58,
-      minHeight: 58,
-      borderRadius: 18,
-      fontSize: 28,
-      lineHeight: 1,
-      padding: 0,
-      display: "grid",
-      placeItems: "center",
-    }}
-    onClick={() => {
-      setComposerMode("menu");
-      setComposerOpen(true);
-    }}
-    aria-label="Open add menu"
-    title="Add"
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = "translateY(-1px) scale(1.03)";
-      e.currentTarget.style.boxShadow = "0 10px 24px rgba(112,142,117,0.30)";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = "translateY(0) scale(1)";
-      e.currentTarget.style.boxShadow = "0 4px 10px rgba(112,142,117,0.24)";
-    }}
-  >
-    +
-  </button>
-</div>
+           <button
+  style={{
+    ...styles.button,
+    minWidth: 58,
+    minHeight: 58,
+    borderRadius: 18,
+    fontSize: 28,
+    lineHeight: 1,
+    padding: 0,
+    display: "grid",
+    placeItems: "center",
+  }}
+  onClick={() => {
+    setComposerMode("menu");
+    setComposerOpen(true);
+  }}
+  aria-label="Open add menu"
+  title="Add"
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-1px) scale(1.03)";
+    e.currentTarget.style.boxShadow = "0 10px 24px rgba(112,142,117,0.30)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0) scale(1)";
+    e.currentTarget.style.boxShadow = "0 4px 10px rgba(112,142,117,0.24)";
+  }}
+>
+  +
+</button>
           </div>
         </div>
 
