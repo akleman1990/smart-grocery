@@ -1,0 +1,1 @@
+export const HOUSEHOLD_ID = "alex-household-2026";
