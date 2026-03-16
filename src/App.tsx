@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
+import { HOUSEHOLD_ID } from "./household";
 
 type Ingredient = {
   quantity: string;
@@ -382,7 +383,7 @@ const styles = {
 const sharedGroceryDocRef = doc(db, "sharedLists", "main");
 export default function App() {
   const [dishes, setDishes] = useState<Dish[]>(() => {
-    const saved = localStorage.getItem("dishes");
+    const saved = localStorage.getItem(`dishes-${HOUSEHOLD_ID}`);
     if (!saved) return [];
     try {
       const parsed = JSON.parse(saved);
@@ -402,7 +403,7 @@ export default function App() {
   });
 
   const [grocery, setGrocery] = useState<Ingredient[]>(() => {
-    const saved = localStorage.getItem("grocery");
+    const saved = localStorage.getItem(`grocery-${HOUSEHOLD_ID}`);
     if (!saved) return [];
     try {
       return mergeIngredientLists(sanitizeIngredients(JSON.parse(saved)));
@@ -434,17 +435,25 @@ export default function App() {
   const bulkIngredientsTextRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    localStorage.setItem("dishes", JSON.stringify(dishes));
+    localStorage.setItem(`dishes-${HOUSEHOLD_ID}`, JSON.stringify(dishes));
   }, [dishes]);
 
 useEffect(() => {
+  setDoc(
+    sharedGroceryDocRef,
+    { householdId: HOUSEHOLD_ID, grocery: [] },
+    { merge: true }
+  ).catch((error) => {
+    console.error("Failed to initialize household document:", error);
+  });
+
   const unsubscribe = subscribeToSharedGroceryList();
 
   return () => unsubscribe();
 }, []);
 
 useEffect(() => {
-  localStorage.setItem("grocery", JSON.stringify(grocery));
+  localStorage.setItem(`grocery-${HOUSEHOLD_ID}`, JSON.stringify(grocery));
 }, [grocery]);
 useEffect(() => {
   const timeout = window.setTimeout(() => {
@@ -468,14 +477,14 @@ function subscribeToSharedGroceryList() {
   return onSnapshot(
     sharedGroceryDocRef,
     (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.grocery) {
-          setGrocery(data.grocery);
-        } else {
-          setGrocery([]);
-        }
+      if (!snapshot.exists()) {
+        setGrocery([]);
+        return;
       }
+
+      const data = snapshot.data();
+      const nextGrocery = mergeIngredientLists(sanitizeIngredients(data.grocery));
+      setGrocery(nextGrocery);
     },
     (error) => {
       console.error("Failed to subscribe to shared grocery list:", error);
@@ -493,7 +502,14 @@ async function saveSharedGroceryList(showMessage = true) {
       ...(item.aisle ? { aisle: item.aisle } : {}),
     }));
 
-    await setDoc(sharedGroceryDocRef, { grocery: cleanedGrocery });
+  await setDoc(
+  sharedGroceryDocRef,
+  {
+    householdId: HOUSEHOLD_ID,
+    grocery: cleanedGrocery,
+  },
+  { merge: true }
+);
 
     if (showMessage) {
       setStatusMessage("Shared grocery list saved.");
