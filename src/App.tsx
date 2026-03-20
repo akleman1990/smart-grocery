@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, getDoc, arrayUnion } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -442,7 +442,10 @@ useEffect(() => {
 
   setDoc(
     sharedGroceryDocRef,
-    { householdId: householdId },
+    {
+      householdId: householdId,
+      ...(user ? { users: arrayUnion(user.uid) } : {}),
+    },
     { merge: true }
   ).catch((error) => {
     console.error("Failed to initialize household document:", error);
@@ -508,6 +511,15 @@ useEffect(() => {
           { merge: true }
         );
       }
+
+      await setDoc(
+        doc(db, "households", nextHouseholdId),
+        {
+          householdId: nextHouseholdId,
+          users: arrayUnion(nextUser.uid),
+        },
+        { merge: true }
+      );
 
       setHouseholdId(nextHouseholdId);
       setHouseholdInput(nextHouseholdId);
@@ -738,6 +750,15 @@ setPassword("");
       {
         email: user.email ?? "",
         householdId: nextId,
+      },
+      { merge: true }
+    );
+
+    await setDoc(
+      doc(db, "households", nextId),
+      {
+        householdId: nextId,
+        users: arrayUnion(user.uid),
       },
       { merge: true }
     );
