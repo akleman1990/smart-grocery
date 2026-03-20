@@ -473,7 +473,15 @@ useEffect(() => {
   function bumpAnimation() {
     setAnimateKey((v) => v + 1);
   }
-
+function copyHouseholdId() {
+  navigator.clipboard.writeText(householdId);
+  setStatusMessage("Household ID copied.");
+}
+function generateHouseholdId() {
+  const random = Math.random().toString(36).substring(2, 8);
+  const newId = `household-${random}`;
+  setHouseholdInput(newId);
+}
 function subscribeToSharedGroceryList() {
   return onSnapshot(
     sharedGroceryDocRef,
@@ -1242,13 +1250,30 @@ function deleteDish(index: number) {
                 Use the same household ID on multiple devices to share dishes and grocery lists.
               </p>
 
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Household ID</label>
-              <input
-                style={styles.input}
-                value={householdInput}
-                onChange={(e) => setHouseholdInput(e.target.value)}
-                placeholder="Enter household ID"
-              />
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+  Household ID
+</label>
+
+<div style={{ display: "flex", gap: 8 }}>
+  <input
+    style={{ ...styles.input, flex: 1 }}
+    value={householdInput}
+    onChange={(e) => setHouseholdInput(e.target.value)}
+    placeholder="Enter household ID"
+  />
+<button
+  style={{ ...styles.secondaryButton, marginTop: 10, width: "100%" }}
+  onClick={generateHouseholdId}
+>
+  Generate New Household ID
+</button>
+  <button
+    style={styles.secondaryButton}
+    onClick={copyHouseholdId}
+  >
+    Copy
+  </button>
+</div>
 
               <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
                 Current household: <strong>{householdId}</strong>
