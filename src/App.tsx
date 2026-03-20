@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
-import { HOUSEHOLD_ID } from "./household";
+import { DEFAULT_HOUSEHOLD_ID, HOUSEHOLD_STORAGE_KEY } from "./household";
 
 type Ingredient = {
   quantity: string;
@@ -380,19 +380,30 @@ const styles = {
     letterSpacing: "-0.02em",
   } as const,
 };
-const sharedGroceryDocRef = doc(db, "sharedLists", "main");
+  const [householdId, setHouseholdId] = useState(() => {
+    const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
+    return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
+  });
+
+  const [householdInput, setHouseholdInput] = useState(() => {
+    const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
+    return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
+  });
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 export default function App() {
  const [dishes, setDishes] = useState<Dish[]>([]);
 
-  const [grocery, setGrocery] = useState<Ingredient[]>(() => {
-    const saved = localStorage.getItem(`grocery-${HOUSEHOLD_ID}`);
-    if (!saved) return [];
-    try {
-      return mergeIngredientLists(sanitizeIngredients(JSON.parse(saved)));
-    } catch {
-      return [];
-    }
-  });
+const [grocery, setGrocery] = useState<Ingredient[]>(() => {
+  const savedHouseholdId = localStorage.getItem(HOUSEHOLD_STORAGE_KEY)?.trim() || DEFAULT_HOUSEHOLD_ID;
+  const saved = localStorage.getItem(`grocery-${savedHouseholdId}`);
+  if (!saved) return [];
+  try {
+    return mergeIngredientLists(sanitizeIngredients(JSON.parse(saved)));
+  } catch {
+    return [];
+  }
+});
 
   const [dishName, setDishName] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -416,11 +427,13 @@ export default function App() {
   const manualTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const bulkIngredientsTextRef = useRef<HTMLTextAreaElement | null>(null);
 
-
+  const sharedGroceryDocRef = useMemo(() => {
+    return doc(db, "households", householdId);
+  }, [householdId]);
 useEffect(() => {
   setDoc(
     sharedGroceryDocRef,
-    { householdId: HOUSEHOLD_ID, grocery: [], dishes: [] },
+    { householdId: householdId grocery: [], dishes: [] },
     { merge: true }
   ).catch((error) => {
     console.error("Failed to initialize household document:", error);
@@ -429,11 +442,13 @@ useEffect(() => {
   const unsubscribe = subscribeToSharedGroceryList();
 
   return () => unsubscribe();
-}, []);
-
+}, }, [sharedGroceryDocRef, householdId]);
 useEffect(() => {
-  localStorage.setItem(`grocery-${HOUSEHOLD_ID}`, JSON.stringify(grocery));
-}, [grocery]);
+  localStorage.setItem(HOUSEHOLD_STORAGE_KEY, householdId);
+}, [householdId]);
+useEffect(() => {
+  localStorage.setItem(`grocery-${householdId}`, JSON.stringify(grocery));
+}, [grocery, householdId]);
 useEffect(() => {
   const timeout = window.setTimeout(() => {
     saveSharedGroceryList(false);
@@ -509,7 +524,7 @@ async function saveSharedGroceryList(showMessage = true) {
   await setDoc(
   sharedGroceryDocRef,
   {
-    householdId: HOUSEHOLD_ID,
+   householdId: householdId
     grocery: cleanedGrocery,
   },
   { merge: true }
@@ -549,7 +564,7 @@ async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
     await setDoc(
       sharedGroceryDocRef,
       {
-        householdId: HOUSEHOLD_ID,
+        householdId: householdId
         dishes: cleanedDishes,
       },
       { merge: true }
@@ -577,7 +592,29 @@ async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
     setEditingDishIndex(null);
     setIngredientSuggestions([]);
   }
+  function applyHouseholdIdChange() {
+    const nextId = householdInput.trim();
 
+    if (!nextId) {
+      setStatusMessage("Household ID cannot be empty.");
+      return;
+    }
+
+    if (nextId === householdId) {
+      setSettingsOpen(false);
+      setStatusMessage("Already using this household.");
+      return;
+    }
+
+    setHouseholdId(nextId);
+    setGrocery([]);
+    setDishes([]);
+    setSelectedDish(null);
+    setSelectedIngredientKeys([]);
+    setCollapsedCategories({});
+    setSettingsOpen(false);
+    setStatusMessage("Household updated.");
+  }
   function vibrate(ms = 12) {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       navigator.vibrate(ms);
@@ -863,7 +900,12 @@ function deleteDish(index: number) {
             <div>
               <div style={styles.pill}>Minimal • Fast • Grocery-first</div>
               <h1 style={{ margin: "10px 0 6px", fontSize: 38, lineHeight: 1.02, letterSpacing: "-0.03em" }}>Smart Grocery Planner</h1>
-              <p style={{ margin: 0, color: "#5C6D63", fontSize: 16 }}>Build dishes quickly, then shop from one clear grocery list.</p>
+              <div>
+  <p style={{ margin: 0, color: "#5C6D63", fontSize: 16 }}>Build dishes quickly, then shop from one clear grocery list.</p>
+  <p style={{ margin: "8px 0 0", color: "#7A867D", fontSize: 13 }}>
+    Household: <strong>{householdId}</strong>
+  </p>
+</div>
             </div>
            <button
   style={{
@@ -1168,7 +1210,37 @@ function deleteDish(index: number) {
           )}
           <button style={{ ...styles.button, marginTop: 10, width: "100%" }} onClick={addParsedManualItems}>Add Grocery Items</button>
         </div>
+        {settingsOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(19,25,31,0.28)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12, zIndex: 22 }}>
+            <div style={{ ...styles.card, width: "100%", maxWidth: 560, marginBottom: 0, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
+              <h2 style={{ ...styles.sectionTitle, marginBottom: 8 }}>Household Settings</h2>
+              <p style={{ marginTop: 0, color: "#65756C" }}>
+                Use the same household ID on multiple devices to share dishes and grocery lists.
+              </p>
 
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Household ID</label>
+              <input
+                style={styles.input}
+                value={householdInput}
+                onChange={(e) => setHouseholdInput(e.target.value)}
+                placeholder="Enter household ID"
+              />
+
+              <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
+                Current household: <strong>{householdId}</strong>
+              </div>
+
+              <div style={{ ...styles.actionWrap, marginTop: 18 }}>
+                <button style={{ ...styles.button, flex: 1 }} onClick={applyHouseholdIdChange}>
+                  Save Household
+                </button>
+                <button style={{ ...styles.secondaryButton, flex: 1 }} onClick={() => setSettingsOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {composerOpen && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(19,25,31,0.28)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12, zIndex: 20 }}>
             <div style={{ ...styles.card, width: "100%", maxWidth: 560, marginBottom: 0, borderBottomLeftRadius: 26, borderBottomRightRadius: 26, transform: "translateY(0)", transition: "transform 220ms ease, opacity 220ms ease" }}>
