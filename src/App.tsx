@@ -661,15 +661,24 @@ setPassword("");
     }
   }
 
-  async function handleSignOut() {
-    try {
-      await signOut(auth);
-      setStatusMessage("Signed out.");
-    } catch (error) {
-      console.error("Sign out failed:", error);
-      setStatusMessage("Could not sign out.");
-    }
+ async function handleSignOut() {
+  try {
+    localStorage.removeItem(HOUSEHOLD_STORAGE_KEY);
+    setHouseholdId(DEFAULT_HOUSEHOLD_ID);
+    setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
+    setGrocery([]);
+    setDishes([]);
+    setSelectedDish(null);
+    setSelectedIngredientKeys([]);
+    setCollapsedCategories({});
+
+    await signOut(auth);
+    setStatusMessage("Signed out.");
+  } catch (error) {
+    console.error("Sign out failed:", error);
+    setStatusMessage("Could not sign out.");
   }
+}
   function applyHouseholdIdChange() {
     const nextId = householdInput.trim();
 
