@@ -994,6 +994,22 @@ if (!user) {
             Sign in to access your household grocery lists and dishes.
           </p>
 
+          {statusMessage ? (
+            <div
+              style={{
+                marginTop: 14,
+                marginBottom: 4,
+                padding: 12,
+                borderRadius: 14,
+                background: "#EEF5EE",
+                color: "#24364B",
+                fontWeight: 600,
+              }}
+            >
+              {statusMessage}
+            </div>
+          ) : null}
+
           <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
             <input
               style={styles.input}
@@ -1013,16 +1029,21 @@ if (!user) {
           </div>
 
           <div style={{ ...styles.actionWrap, marginTop: 16 }}>
-            <button style={{ ...styles.button, flex: 1 }} onClick={handleAuthSubmit}>
+            <button
+  type="button"
+  style={{ ...styles.button, flex: 1 }}
+  onClick={handleAuthSubmit}
+>
               {authMode === "signup" ? "Create Account" : "Sign In"}
             </button>
 
             <button
-              style={{ ...styles.secondaryButton, flex: 1 }}
-              onClick={() =>
-                setAuthMode((current) => (current === "signup" ? "signin" : "signup"))
-              }
-            >
+  type="button"
+  style={{ ...styles.secondaryButton, flex: 1 }}
+  onClick={() =>
+    setAuthMode((current) => (current === "signup" ? "signin" : "signup"))
+  }
+>
               {authMode === "signup" ? "Use Sign In" : "Create Account Instead"}
             </button>
           </div>
