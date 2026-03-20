@@ -433,12 +433,12 @@ const [grocery, setGrocery] = useState<Ingredient[]>(() => {
   }, [householdId]);
 useEffect(() => {
   setDoc(
-  sharedGroceryDocRef,
-  { householdId: householdId, grocery: [], dishes: [] },
-  { merge: true }
-).catch((error) => {
-  console.error("Failed to initialize household document:", error);
-});
+    sharedGroceryDocRef,
+    { householdId: householdId },
+    { merge: true }
+  ).catch((error) => {
+    console.error("Failed to initialize household document:", error);
+  });
 
   const unsubscribe = subscribeToSharedGroceryList();
 
