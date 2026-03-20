@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -389,19 +389,14 @@ const styles = {
 };
   
 export default function App() {
-  const [householdId, setHouseholdId] = useState(() => {
-    const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
-    return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
-  });
+  const [householdId, setHouseholdId] = useState(DEFAULT_HOUSEHOLD_ID);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [householdReady, setHouseholdReady] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [householdInput, setHouseholdInput] = useState(() => {
-    const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
-    return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
-  });
+  const [householdInput, setHouseholdInput] = useState(DEFAULT_HOUSEHOLD_ID);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
  const [dishes, setDishes] = useState<Dish[]>([]);
@@ -443,7 +438,7 @@ const [grocery, setGrocery] = useState<Ingredient[]>(() => {
     return doc(db, "households", householdId);
   }, [householdId]);
 useEffect(() => {
-  if (authLoading || !user) return;
+  if (authLoading || !user || !householdReady) return;
 
   setDoc(
     sharedGroceryDocRef,
@@ -456,40 +451,89 @@ useEffect(() => {
   const unsubscribe = subscribeToSharedGroceryList();
 
   return () => unsubscribe();
-}, [sharedGroceryDocRef, householdId, authLoading, user]);
-useEffect(() => {
-  localStorage.setItem(HOUSEHOLD_STORAGE_KEY, householdId);
-}, [householdId]);
+}, [sharedGroceryDocRef, householdId, authLoading, user, householdReady]);
+
 useEffect(() => {
   localStorage.setItem(`grocery-${householdId}`, JSON.stringify(grocery));
 }, [grocery, householdId]);
 useEffect(() => {
-  if (authLoading || !user) return;
+  if (authLoading || !user || !householdReady) return;
 
   const timeout = window.setTimeout(() => {
     saveSharedGroceryList(false);
   }, 300);
 
   return () => window.clearTimeout(timeout);
-}, [JSON.stringify(grocery), authLoading, user]);
+}, [JSON.stringify(grocery), authLoading, user, householdReady]);
 
 useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+  const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+    setAuthLoading(true);
+
+    if (!nextUser) {
+      setUser(null);
+      setHouseholdId(DEFAULT_HOUSEHOLD_ID);
+      setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
+      setGrocery([]);
+      setDishes([]);
+      setSelectedDish(null);
+      setSelectedIngredientKeys([]);
+      setCollapsedCategories({});
+      setHouseholdReady(false);
+      localStorage.removeItem(HOUSEHOLD_STORAGE_KEY);
+      setAuthLoading(false);
+      return;
+    }
+
     setUser(nextUser);
-    setAuthLoading(false);
+    setHouseholdReady(false);
+
+    try {
+      const userDocRef = doc(db, "users", nextUser.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      const savedHouseholdId = userSnap.exists()
+        ? String(userSnap.data().householdId ?? "").trim()
+        : "";
+
+      const nextHouseholdId = savedHouseholdId || DEFAULT_HOUSEHOLD_ID;
+
+      if (!userSnap.exists() || !savedHouseholdId) {
+        await setDoc(
+          userDocRef,
+          {
+            email: nextUser.email ?? "",
+            householdId: nextHouseholdId,
+          },
+          { merge: true }
+        );
+      }
+
+      setHouseholdId(nextHouseholdId);
+      setHouseholdInput(nextHouseholdId);
+      setHouseholdReady(true);
+    } catch (error) {
+      console.error("Failed to load user household:", error);
+      setHouseholdId(DEFAULT_HOUSEHOLD_ID);
+      setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
+      setHouseholdReady(true);
+      setStatusMessage("Could not load your saved household.");
+    } finally {
+      setAuthLoading(false);
+    }
   });
 
   return () => unsubscribe();
 }, []);
 useEffect(() => {
-  if (authLoading || !user) return;
+  if (authLoading || !user || !householdReady) return;
 
   const timeout = window.setTimeout(() => {
     saveSharedDishes(false);
   }, 300);
 
   return () => window.clearTimeout(timeout);
-}, [JSON.stringify(dishes), authLoading, user]);
+}, [JSON.stringify(dishes), authLoading, user, householdReady]);
   useEffect(() => {
     if (!statusMessage) return;
     const t = window.setTimeout(() => setStatusMessage(""), 2200);
@@ -508,8 +552,7 @@ function generateHouseholdId() {
   const newId = `household-${random}`;
 
   setHouseholdInput(newId);
-  setHouseholdId(newId);
-  setStatusMessage("New household created.");
+  setStatusMessage("New household ID generated. Click Save Household to use it.");
 }
 
 function subscribeToSharedGroceryList() {
@@ -663,15 +706,6 @@ setPassword("");
 
  async function handleSignOut() {
   try {
-    localStorage.removeItem(HOUSEHOLD_STORAGE_KEY);
-    setHouseholdId(DEFAULT_HOUSEHOLD_ID);
-    setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
-    setGrocery([]);
-    setDishes([]);
-    setSelectedDish(null);
-    setSelectedIngredientKeys([]);
-    setCollapsedCategories({});
-
     await signOut(auth);
     setStatusMessage("Signed out.");
   } catch (error) {
@@ -679,19 +713,34 @@ setPassword("");
     setStatusMessage("Could not sign out.");
   }
 }
-  function applyHouseholdIdChange() {
-    const nextId = householdInput.trim();
+  async function applyHouseholdIdChange() {
+  if (!user) {
+    setStatusMessage("You must be signed in.");
+    return;
+  }
 
-    if (!nextId) {
-      setStatusMessage("Household ID cannot be empty.");
-      return;
-    }
+  const nextId = householdInput.trim();
 
-    if (nextId === householdId) {
-      setSettingsOpen(false);
-      setStatusMessage("Already using this household.");
-      return;
-    }
+  if (!nextId) {
+    setStatusMessage("Household ID cannot be empty.");
+    return;
+  }
+
+  if (nextId === householdId) {
+    setSettingsOpen(false);
+    setStatusMessage("Already using this household.");
+    return;
+  }
+
+  try {
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        email: user.email ?? "",
+        householdId: nextId,
+      },
+      { merge: true }
+    );
 
     setHouseholdId(nextId);
     setGrocery([]);
@@ -701,7 +750,11 @@ setPassword("");
     setCollapsedCategories({});
     setSettingsOpen(false);
     setStatusMessage("Household updated.");
+  } catch (error) {
+    console.error("Failed to update household:", error);
+    setStatusMessage("Could not update household.");
   }
+}
   function vibrate(ms = 12) {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       navigator.vibrate(ms);
@@ -979,7 +1032,7 @@ function deleteDish(index: number) {
   });
 }, [dishes, dishSearch]);
 
-if (authLoading) {
+if (authLoading || (user && !householdReady)) {
   return (
     <div style={styles.app}>
       <div style={styles.shell}>
