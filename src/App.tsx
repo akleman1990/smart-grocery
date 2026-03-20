@@ -443,6 +443,8 @@ const [grocery, setGrocery] = useState<Ingredient[]>(() => {
     return doc(db, "households", householdId);
   }, [householdId]);
 useEffect(() => {
+  if (authLoading || !user) return;
+
   setDoc(
     sharedGroceryDocRef,
     { householdId: householdId },
@@ -454,7 +456,7 @@ useEffect(() => {
   const unsubscribe = subscribeToSharedGroceryList();
 
   return () => unsubscribe();
-}, [sharedGroceryDocRef, householdId]);
+}, [sharedGroceryDocRef, householdId, authLoading, user]);
 useEffect(() => {
   localStorage.setItem(HOUSEHOLD_STORAGE_KEY, householdId);
 }, [householdId]);
@@ -462,12 +464,14 @@ useEffect(() => {
   localStorage.setItem(`grocery-${householdId}`, JSON.stringify(grocery));
 }, [grocery, householdId]);
 useEffect(() => {
+  if (authLoading || !user) return;
+
   const timeout = window.setTimeout(() => {
     saveSharedGroceryList(false);
   }, 300);
 
   return () => window.clearTimeout(timeout);
-}, [JSON.stringify(grocery)]);
+}, [JSON.stringify(grocery), authLoading, user]);
 
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
@@ -478,12 +482,14 @@ useEffect(() => {
   return () => unsubscribe();
 }, []);
 useEffect(() => {
+  if (authLoading || !user) return;
+
   const timeout = window.setTimeout(() => {
     saveSharedDishes(false);
   }, 300);
 
   return () => window.clearTimeout(timeout);
-}, [JSON.stringify(dishes)]);
+}, [JSON.stringify(dishes), authLoading, user]);
   useEffect(() => {
     if (!statusMessage) return;
     const t = window.setTimeout(() => setStatusMessage(""), 2200);
@@ -642,7 +648,8 @@ async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
         setStatusMessage("Signed in.");
       }
 
-      setPassword("");
+     setEmail(cleanEmail);
+setPassword("");
     } catch (error) {
       console.error("Authentication failed:", error);
 
