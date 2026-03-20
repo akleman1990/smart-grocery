@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
-import { db } from "./firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User,
+} from "firebase/auth";
+import { db, auth } from "./firebase";
 import { DEFAULT_HOUSEHOLD_ID, HOUSEHOLD_STORAGE_KEY } from "./household";
 
 type Ingredient = {
@@ -386,7 +393,11 @@ export default function App() {
     const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
     return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
   });
-
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [householdInput, setHouseholdInput] = useState(() => {
     const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
     return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
@@ -457,6 +468,15 @@ useEffect(() => {
 
   return () => window.clearTimeout(timeout);
 }, [JSON.stringify(grocery)]);
+
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    setUser(nextUser);
+    setAuthLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 useEffect(() => {
   const timeout = window.setTimeout(() => {
     saveSharedDishes(false);
@@ -485,9 +505,7 @@ function generateHouseholdId() {
   setHouseholdId(newId);
   setStatusMessage("New household created.");
 }
-<p style={{ margin: "6px 0 0", fontSize: 12, color: "#7A867D" }}>
-  Share this ID with another device to sync your grocery list and dishes.
-</p>
+
 function subscribeToSharedGroceryList() {
   return onSnapshot(
     sharedGroceryDocRef,
@@ -605,6 +623,45 @@ async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
     setBulkIngredientsText("");
     setEditingDishIndex(null);
     setIngredientSuggestions([]);
+  }
+    async function handleAuthSubmit() {
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setStatusMessage("Email and password are required.");
+      return;
+    }
+
+    try {
+      if (authMode === "signup") {
+        await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        setStatusMessage("Account created.");
+      } else {
+        await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        setStatusMessage("Signed in.");
+      }
+
+      setPassword("");
+    } catch (error) {
+      console.error("Authentication failed:", error);
+
+      if (error instanceof Error) {
+        setStatusMessage(error.message);
+      } else {
+        setStatusMessage("Authentication failed.");
+      }
+    }
+  }
+
+  async function handleSignOut() {
+    try {
+      await signOut(auth);
+      setStatusMessage("Signed out.");
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      setStatusMessage("Could not sign out.");
+    }
   }
   function applyHouseholdIdChange() {
     const nextId = householdInput.trim();
@@ -897,16 +954,78 @@ function deleteDish(index: number) {
   const progressPercent = totalVisibleItems > 0 ? Math.round((completedCount / totalVisibleItems) * 100) : 0;
 
   const filteredDishes = useMemo(() => {
-    const q = dishSearch.trim().toLowerCase();
-    if (!q) return dishes;
-    return dishes.filter((dish) => {
-      const inName = dish.name.toLowerCase().includes(q);
-      const inIngredients = dish.ingredients.some((ing) => ingredientLabel(ing).toLowerCase().includes(q));
-      return inName || inIngredients;
-    });
-  }, [dishes, dishSearch]);
+  const q = dishSearch.trim().toLowerCase();
+  if (!q) return dishes;
+  return dishes.filter((dish) => {
+    const inName = dish.name.toLowerCase().includes(q);
+    const inIngredients = dish.ingredients.some((ing) => ingredientLabel(ing).toLowerCase().includes(q));
+    return inName || inIngredients;
+  });
+}, [dishes, dishSearch]);
 
+if (authLoading) {
   return (
+    <div style={styles.app}>
+      <div style={styles.shell}>
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>Loading...</h2>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+if (!user) {
+  return (
+    <div style={styles.app}>
+      <div style={styles.shell}>
+        <div style={{ ...styles.card, maxWidth: 520, margin: "40px auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: 10, fontSize: 36, lineHeight: 1.05 }}>
+            Smart Grocery Planner
+          </h1>
+          <p style={{ marginTop: 0, color: "#65756C" }}>
+            Sign in to access your household grocery lists and dishes.
+          </p>
+
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            <input
+              style={styles.input}
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <input
+              style={styles.input}
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div style={{ ...styles.actionWrap, marginTop: 16 }}>
+            <button style={{ ...styles.button, flex: 1 }} onClick={handleAuthSubmit}>
+              {authMode === "signup" ? "Create Account" : "Sign In"}
+            </button>
+
+            <button
+              style={{ ...styles.secondaryButton, flex: 1 }}
+              onClick={() =>
+                setAuthMode((current) => (current === "signup" ? "signin" : "signup"))
+              }
+            >
+              {authMode === "signup" ? "Use Sign In" : "Create Account Instead"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+return (
     <div style={styles.app}>
       <div style={styles.shell}>
         <div style={styles.headerCard}>
@@ -922,6 +1041,21 @@ function deleteDish(index: number) {
 </div>
             </div>
 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+  <button
+  style={{
+    ...styles.secondaryButton,
+    minWidth: 58,
+    minHeight: 58,
+    borderRadius: 18,
+    fontSize: 14,
+    padding: "0 14px",
+  }}
+  onClick={handleSignOut}
+  aria-label="Sign out"
+  title="Sign out"
+>
+  Sign out
+</button>
   <button
     style={{
       ...styles.secondaryButton,
@@ -1285,30 +1419,34 @@ function deleteDish(index: number) {
                 Household ID
               </label>
 
-              <div style={{ display: "grid", gap: 10 }}>
-                <input
-                  style={{ ...styles.input, width: "100%" }}
-                  value={householdInput}
-                  onChange={(e) => setHouseholdInput(e.target.value)}
-                  placeholder="Enter household ID"
-                />
+             <div style={{ display: "grid", gap: 10 }}>
+  <input
+    style={{ ...styles.input, width: "100%" }}
+    value={householdInput}
+    onChange={(e) => setHouseholdInput(e.target.value)}
+    placeholder="Enter household ID"
+  />
 
-                <button
-                  type="button"
-                  style={{ ...styles.secondaryButton, width: "100%" }}
-                  onClick={generateHouseholdId}
-                >
-                  Generate New Household ID
-                </button>
+  <p style={{ margin: "0", fontSize: 12, color: "#7A867D" }}>
+    Share this ID with another device to sync your grocery list and dishes.
+  </p>
 
-                <button
-                  type="button"
-                  style={{ ...styles.secondaryButton, width: "100%" }}
-                  onClick={copyHouseholdId}
-                >
-                  Copy Current Household ID
-                </button>
-              </div>
+  <button
+    type="button"
+    style={{ ...styles.secondaryButton, width: "100%" }}
+    onClick={generateHouseholdId}
+  >
+    Generate New Household ID
+  </button>
+
+  <button
+    type="button"
+    style={{ ...styles.secondaryButton, width: "100%" }}
+    onClick={copyHouseholdId}
+  >
+    Copy Current Household ID
+  </button>
+</div>
 
               <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
                 Current household: <strong>{householdId}</strong>
