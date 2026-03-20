@@ -1254,27 +1254,31 @@ function deleteDish(index: number) {
   Household ID
 </label>
 
-<div style={{ display: "flex", gap: 8 }}>
+<div style={{ display: "grid", gap: 10 }}>
   <input
-    style={{ ...styles.input, flex: 1 }}
+    style={{ ...styles.input, width: "100%" }}
     value={householdInput}
     onChange={(e) => setHouseholdInput(e.target.value)}
     placeholder="Enter household ID"
   />
-<button
-  style={{ ...styles.secondaryButton, marginTop: 10, width: "100%" }}
-  onClick={generateHouseholdId}
->
-  Generate New Household ID
-</button>
+
   <button
-    style={styles.secondaryButton}
-    onClick={copyHouseholdId}
+    style={{ ...styles.secondaryButton, width: "100%" }}
+    onClick={generateHouseholdId}
+    type="button"
   >
-    Copy
+    Generate New Household ID
+  </button>
+
+  <button
+    style={{ ...styles.secondaryButton, width: "100%" }}
+    onClick={copyHouseholdId}
+    type="button"
+  >
+    Copy Current Household ID
   </button>
 </div>
-
+</div>
               <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
                 Current household: <strong>{householdId}</strong>
               </div>
