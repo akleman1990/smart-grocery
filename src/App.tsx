@@ -1242,52 +1242,84 @@ function deleteDish(index: number) {
           )}
           <button style={{ ...styles.button, marginTop: 10, width: "100%" }} onClick={addParsedManualItems}>Add Grocery Items</button>
         </div>
-        {settingsOpen && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(19,25,31,0.28)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12, zIndex: 22 }}>
-            <div style={{ ...styles.card, width: "100%", maxWidth: 560, marginBottom: 0, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
-              <h2 style={{ ...styles.sectionTitle, marginBottom: 8 }}>Household Settings</h2>
+              {settingsOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(19,25,31,0.28)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              padding: 12,
+              zIndex: 22,
+            }}
+          >
+            <div
+              style={{
+                ...styles.card,
+                width: "100%",
+                maxWidth: 560,
+                marginBottom: 0,
+                borderBottomLeftRadius: 26,
+                borderBottomRightRadius: 26,
+              }}
+            >
+              <h2 style={{ ...styles.sectionTitle, marginBottom: 8 }}>
+                Household Settings
+              </h2>
+
               <p style={{ marginTop: 0, color: "#65756C" }}>
                 Use the same household ID on multiple devices to share dishes and grocery lists.
               </p>
 
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-  Household ID
-</label>
+                Household ID
+              </label>
 
-<div style={{ display: "grid", gap: 10 }}>
-  <input
-    style={{ ...styles.input, width: "100%" }}
-    value={householdInput}
-    onChange={(e) => setHouseholdInput(e.target.value)}
-    placeholder="Enter household ID"
-  />
+              <div style={{ display: "grid", gap: 10 }}>
+                <input
+                  style={{ ...styles.input, width: "100%" }}
+                  value={householdInput}
+                  onChange={(e) => setHouseholdInput(e.target.value)}
+                  placeholder="Enter household ID"
+                />
 
-  <button
-    style={{ ...styles.secondaryButton, width: "100%" }}
-    onClick={generateHouseholdId}
-    type="button"
-  >
-    Generate New Household ID
-  </button>
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%" }}
+                  onClick={generateHouseholdId}
+                >
+                  Generate New Household ID
+                </button>
 
-  <button
-    style={{ ...styles.secondaryButton, width: "100%" }}
-    onClick={copyHouseholdId}
-    type="button"
-  >
-    Copy Current Household ID
-  </button>
-</div>
-</div>
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%" }}
+                  onClick={copyHouseholdId}
+                >
+                  Copy Current Household ID
+                </button>
+              </div>
+
               <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
                 Current household: <strong>{householdId}</strong>
               </div>
 
               <div style={{ ...styles.actionWrap, marginTop: 18 }}>
-                <button style={{ ...styles.button, flex: 1 }} onClick={applyHouseholdIdChange}>
+                <button
+                  style={{ ...styles.button, flex: 1 }}
+                  onClick={applyHouseholdIdChange}
+                >
                   Save Household
                 </button>
-                <button style={{ ...styles.secondaryButton, flex: 1 }} onClick={() => setSettingsOpen(false)}>
+
+                <button
+                  style={{ ...styles.secondaryButton, flex: 1 }}
+                  onClick={() => setSettingsOpen(false)}
+                >
                   Cancel
                 </button>
               </div>
