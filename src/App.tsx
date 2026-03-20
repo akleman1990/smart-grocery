@@ -907,35 +907,59 @@ function deleteDish(index: number) {
   </p>
 </div>
             </div>
-           <button
-  style={{
-    ...styles.button,
-    minWidth: 58,
-    minHeight: 58,
-    borderRadius: 18,
-    fontSize: 28,
-    lineHeight: 1,
-    padding: 0,
-    display: "grid",
-    placeItems: "center",
-  }}
-  onClick={() => {
-    setComposerMode("menu");
-    setComposerOpen(true);
-  }}
-  aria-label="Open add menu"
-  title="Add"
-  onMouseEnter={(e) => {
-    e.currentTarget.style.transform = "translateY(-1px) scale(1.03)";
-    e.currentTarget.style.boxShadow = "0 10px 24px rgba(112,142,117,0.30)";
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.transform = "translateY(0) scale(1)";
-    e.currentTarget.style.boxShadow = "0 4px 10px rgba(112,142,117,0.24)";
-  }}
->
-  +
-</button>
+<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+  <button
+    style={{
+      ...styles.secondaryButton,
+      minWidth: 58,
+      minHeight: 58,
+      borderRadius: 18,
+      fontSize: 22,
+      lineHeight: 1,
+      padding: 0,
+      display: "grid",
+      placeItems: "center",
+    }}
+    onClick={() => {
+      setHouseholdInput(householdId);
+      setSettingsOpen(true);
+    }}
+    aria-label="Open household settings"
+    title="Household settings"
+  >
+    ⚙
+  </button>
+
+  <button
+    style={{
+      ...styles.button,
+      minWidth: 58,
+      minHeight: 58,
+      borderRadius: 18,
+      fontSize: 28,
+      lineHeight: 1,
+      padding: 0,
+      display: "grid",
+      placeItems: "center",
+    }}
+    onClick={() => {
+      setComposerMode("menu");
+      setComposerOpen(true);
+    }}
+    aria-label="Open add menu"
+    title="Add"
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = "translateY(-1px) scale(1.03)";
+      e.currentTarget.style.boxShadow = "0 10px 24px rgba(112,142,117,0.30)";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = "translateY(0) scale(1)";
+      e.currentTarget.style.boxShadow = "0 4px 10px rgba(112,142,117,0.24)";
+    }}
+  >
+    +
+  </button>
+</div>
           </div>
         </div>
 
