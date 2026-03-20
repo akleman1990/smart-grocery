@@ -382,25 +382,7 @@ const styles = {
 };
 const sharedGroceryDocRef = doc(db, "sharedLists", "main");
 export default function App() {
-  const [dishes, setDishes] = useState<Dish[]>(() => {
-    const saved = localStorage.getItem(`dishes-${HOUSEHOLD_ID}`);
-    if (!saved) return [];
-    try {
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((dish) => {
-          if (!dish || typeof dish !== "object") return null;
-          const maybe = dish as Record<string, unknown>;
-          const name = String(maybe.name ?? "").trim();
-          if (!name) return null;
-          return { name, ingredients: sanitizeIngredients(maybe.ingredients) };
-        })
-        .filter((dish): dish is Dish => dish !== null);
-    } catch {
-      return [];
-    }
-  });
+ const [dishes, setDishes] = useState<Dish[]>([]);
 
   const [grocery, setGrocery] = useState<Ingredient[]>(() => {
     const saved = localStorage.getItem(`grocery-${HOUSEHOLD_ID}`);
@@ -434,14 +416,11 @@ export default function App() {
   const manualTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const bulkIngredientsTextRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem(`dishes-${HOUSEHOLD_ID}`, JSON.stringify(dishes));
-  }, [dishes]);
 
 useEffect(() => {
   setDoc(
     sharedGroceryDocRef,
-    { householdId: HOUSEHOLD_ID, grocery: [] },
+    { householdId: HOUSEHOLD_ID, grocery: [], dishes: [] },
     { merge: true }
   ).catch((error) => {
     console.error("Failed to initialize household document:", error);
@@ -462,7 +441,13 @@ useEffect(() => {
 
   return () => window.clearTimeout(timeout);
 }, [JSON.stringify(grocery)]);
+useEffect(() => {
+  const timeout = window.setTimeout(() => {
+    saveSharedDishes(false);
+  }, 300);
 
+  return () => window.clearTimeout(timeout);
+}, [JSON.stringify(dishes)]);
   useEffect(() => {
     if (!statusMessage) return;
     const t = window.setTimeout(() => setStatusMessage(""), 2200);
@@ -479,12 +464,31 @@ function subscribeToSharedGroceryList() {
     (snapshot) => {
       if (!snapshot.exists()) {
         setGrocery([]);
+        setDishes([]);
         return;
       }
 
       const data = snapshot.data();
+
       const nextGrocery = mergeIngredientLists(sanitizeIngredients(data.grocery));
       setGrocery(nextGrocery);
+
+      const nextDishes = Array.isArray(data.dishes)
+        ? data.dishes
+            .map((dish) => {
+              if (!dish || typeof dish !== "object") return null;
+              const maybe = dish as Record<string, unknown>;
+              const name = String(maybe.name ?? "").trim();
+              if (!name) return null;
+              return {
+                name,
+                ingredients: sanitizeIngredients(maybe.ingredients),
+              };
+            })
+            .filter((dish): dish is Dish => dish !== null)
+        : [];
+
+      setDishes(nextDishes);
     },
     (error) => {
       console.error("Failed to subscribe to shared grocery list:", error);
@@ -522,6 +526,46 @@ async function saveSharedGroceryList(showMessage = true) {
         setStatusMessage(`Save failed: ${error.message}`);
       } else {
         setStatusMessage("Could not save shared grocery list.");
+      }
+    }
+  }
+}
+async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
+  try {
+    const source = nextDishes ?? dishes;
+
+    const cleanedDishes = source.map((dish) => ({
+      name: String(dish.name ?? "").trim(),
+      ingredients: sanitizeIngredients(dish.ingredients).map((item) => ({
+        quantity: item.quantity ?? "",
+        unit: item.unit ?? "",
+        name: item.name ?? "",
+        completed: !!item.completed,
+        ...(item.category ? { category: item.category } : {}),
+        ...(item.aisle ? { aisle: item.aisle } : {}),
+      })),
+    }));
+
+    await setDoc(
+      sharedGroceryDocRef,
+      {
+        householdId: HOUSEHOLD_ID,
+        dishes: cleanedDishes,
+      },
+      { merge: true }
+    );
+
+    if (showMessage) {
+      setStatusMessage("Shared dishes saved.");
+    }
+  } catch (error) {
+    console.error("Failed to save shared dishes:", error);
+
+    if (showMessage) {
+      if (error instanceof Error) {
+        setStatusMessage(`Dish save failed: ${error.message}`);
+      } else {
+        setStatusMessage("Could not save shared dishes.");
       }
     }
   }
@@ -572,24 +616,30 @@ async function saveSharedGroceryList(showMessage = true) {
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
-  function saveDish() {
-    if (!dishName.trim() || ingredients.length === 0) return;
-    const dishToSave: Dish = { name: dishName.trim(), ingredients };
-    if (editingDishIndex !== null) {
-      const updated = [...dishes];
-      updated[editingDishIndex] = dishToSave;
-      setDishes(updated);
-    } else {
-      setDishes([...dishes, dishToSave]);
-    }
-    const wasEditing = editingDishIndex !== null;
-    resetDishForm();
-    setComposerOpen(false);
-    setComposerMode("menu");
-    setStatusMessage(wasEditing ? "Dish updated." : "Dish saved.");
-    bumpAnimation();
-    vibrate();
+function saveDish() {
+  if (!dishName.trim() || ingredients.length === 0) return;
+
+  const dishToSave: Dish = { name: dishName.trim(), ingredients };
+  let nextDishes: Dish[];
+
+  if (editingDishIndex !== null) {
+    nextDishes = [...dishes];
+    nextDishes[editingDishIndex] = dishToSave;
+  } else {
+    nextDishes = [...dishes, dishToSave];
   }
+
+  setDishes(nextDishes);
+  saveSharedDishes(false, nextDishes);
+
+  const wasEditing = editingDishIndex !== null;
+  resetDishForm();
+  setComposerOpen(false);
+  setComposerMode("menu");
+  setStatusMessage(wasEditing ? "Dish updated." : "Dish saved.");
+  bumpAnimation();
+  vibrate();
+}
 
   function editDish(index: number) {
     const dish = dishes[index];
@@ -602,12 +652,15 @@ async function saveSharedGroceryList(showMessage = true) {
     setComposerOpen(true);
   }
 
-  function deleteDish(index: number) {
-    setDishes(dishes.filter((_, i) => i !== index));
-    if (editingDishIndex === index) resetDishForm();
-    setStatusMessage("Dish deleted.");
-    bumpAnimation();
-  }
+function deleteDish(index: number) {
+  const nextDishes = dishes.filter((_, i) => i !== index);
+  setDishes(nextDishes);
+  saveSharedDishes(false, nextDishes);
+
+  if (editingDishIndex === index) resetDishForm();
+  setStatusMessage("Dish deleted.");
+  bumpAnimation();
+}
 
   function addParsedManualItems() {
     const lines = manualIngredientsText.split("\n").map((line) => line.trim()).filter(Boolean);
