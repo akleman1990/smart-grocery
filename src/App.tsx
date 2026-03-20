@@ -480,8 +480,14 @@ function copyHouseholdId() {
 function generateHouseholdId() {
   const random = Math.random().toString(36).substring(2, 8);
   const newId = `household-${random}`;
+
   setHouseholdInput(newId);
+  setHouseholdId(newId);
+  setStatusMessage("New household created.");
 }
+<p style={{ margin: "6px 0 0", fontSize: 12, color: "#7A867D" }}>
+  Share this ID with another device to sync your grocery list and dishes.
+</p>
 function subscribeToSharedGroceryList() {
   return onSnapshot(
     sharedGroceryDocRef,
