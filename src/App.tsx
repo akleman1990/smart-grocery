@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, setDoc, onSnapshot, getDoc, arrayUnion } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  onSnapshot,
+  getDoc,
+  arrayUnion,
+  serverTimestamp,
+} from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -397,6 +404,9 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [householdInput, setHouseholdInput] = useState(DEFAULT_HOUSEHOLD_ID);
+    const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [currentInviteCode, setCurrentInviteCode] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
  const [dishes, setDishes] = useState<Dish[]>([]);
@@ -566,7 +576,37 @@ function generateHouseholdId() {
   setHouseholdInput(newId);
   setStatusMessage("New household ID generated. Click Save Household to use it.");
 }
+async function generateInviteCode() {
+  if (!user) {
+    setStatusMessage("You must be signed in.");
+    return;
+  }
 
+  setInviteLoading(true);
+
+  try {
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    await setDoc(
+      doc(db, "householdInvites", inviteCode),
+      {
+        householdId,
+        createdBy: user.uid,
+        active: true,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setCurrentInviteCode(inviteCode);
+    setStatusMessage("Invite code created.");
+  } catch (error) {
+    console.error("Failed to create invite code:", error);
+    setStatusMessage("Could not create invite code.");
+  } finally {
+    setInviteLoading(false);
+  }
+}
 function subscribeToSharedGroceryList() {
   return onSnapshot(
     sharedGroceryDocRef,
@@ -774,6 +814,75 @@ setPassword("");
   } catch (error) {
     console.error("Failed to update household:", error);
     setStatusMessage("Could not update household.");
+  }
+}
+async function joinHouseholdByInvite() {
+  if (!user) {
+    setStatusMessage("You must be signed in.");
+    return;
+  }
+
+  const inviteCode = inviteCodeInput.trim().toUpperCase();
+
+  if (!inviteCode) {
+    setStatusMessage("Invite code cannot be empty.");
+    return;
+  }
+
+  setInviteLoading(true);
+
+  try {
+    const inviteRef = doc(db, "householdInvites", inviteCode);
+    const inviteSnap = await getDoc(inviteRef);
+
+    if (!inviteSnap.exists()) {
+      setStatusMessage("Invite code not found.");
+      return;
+    }
+
+    const inviteData = inviteSnap.data();
+    const invitedHouseholdId = String(inviteData.householdId ?? "").trim();
+    const isActive = !!inviteData.active;
+
+    if (!invitedHouseholdId || !isActive) {
+      setStatusMessage("Invite code is invalid or inactive.");
+      return;
+    }
+
+    await setDoc(
+      doc(db, "households", invitedHouseholdId),
+      {
+        householdId: invitedHouseholdId,
+        users: arrayUnion(user.uid),
+      },
+      { merge: true }
+    );
+
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        email: user.email ?? "",
+        householdId: invitedHouseholdId,
+      },
+      { merge: true }
+    );
+
+    setHouseholdId(invitedHouseholdId);
+    setHouseholdInput(invitedHouseholdId);
+    setInviteCodeInput("");
+    setCurrentInviteCode("");
+    setGrocery([]);
+    setDishes([]);
+    setSelectedDish(null);
+    setSelectedIngredientKeys([]);
+    setCollapsedCategories({});
+    setSettingsOpen(false);
+    setStatusMessage("Joined household from invite.");
+  } catch (error) {
+    console.error("Failed to join household by invite:", error);
+    setStatusMessage("Could not join household.");
+  } finally {
+    setInviteLoading(false);
   }
 }
   function vibrate(ms = 12) {
@@ -1523,41 +1632,95 @@ return (
               </h2>
 
               <p style={{ marginTop: 0, color: "#65756C" }}>
-                Use the same household ID on multiple devices to share dishes and grocery lists.
+                Manage your household and invite other signed-in users to join it.
               </p>
 
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                Household ID
+                Current Household ID
               </label>
 
-             <div style={{ display: "grid", gap: 10 }}>
-  <input
-    style={{ ...styles.input, width: "100%" }}
-    value={householdInput}
-    onChange={(e) => setHouseholdInput(e.target.value)}
-    placeholder="Enter household ID"
-  />
+              <div style={{ display: "grid", gap: 10 }}>
+                <input
+                  style={{ ...styles.input, width: "100%" }}
+                  value={householdInput}
+                  onChange={(e) => setHouseholdInput(e.target.value)}
+                  placeholder="Enter household ID"
+                />
 
-  <p style={{ margin: "0", fontSize: 12, color: "#7A867D" }}>
-    Share this ID with another device to sync your grocery list and dishes.
-  </p>
+                <p style={{ margin: "0", fontSize: 12, color: "#7A867D" }}>
+                  You can still manually switch households here, but invite codes are the preferred way to join a shared household.
+                </p>
 
-  <button
-    type="button"
-    style={{ ...styles.secondaryButton, width: "100%" }}
-    onClick={generateHouseholdId}
-  >
-    Generate New Household ID
-  </button>
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%" }}
+                  onClick={generateHouseholdId}
+                >
+                  Generate New Household ID
+                </button>
 
-  <button
-    type="button"
-    style={{ ...styles.secondaryButton, width: "100%" }}
-    onClick={copyHouseholdId}
-  >
-    Copy Current Household ID
-  </button>
-</div>
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%" }}
+                  onClick={copyHouseholdId}
+                >
+                  Copy Current Household ID
+                </button>
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                  Invite Another User
+                </label>
+
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%" }}
+                  onClick={generateInviteCode}
+                  disabled={inviteLoading}
+                >
+                  {inviteLoading ? "Working..." : "Generate Invite Code"}
+                </button>
+
+                {currentInviteCode ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      borderRadius: 14,
+                      background: "#EEF5EE",
+                      color: "#24364B",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    {currentInviteCode}
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                  Join with Invite Code
+                </label>
+
+                <input
+                  style={{ ...styles.input, width: "100%" }}
+                  value={inviteCodeInput}
+                  onChange={(e) => setInviteCodeInput(e.target.value)}
+                  placeholder="Enter invite code"
+                />
+
+                <button
+                  type="button"
+                  style={{ ...styles.secondaryButton, width: "100%", marginTop: 10 }}
+                  onClick={joinHouseholdByInvite}
+                  disabled={inviteLoading}
+                >
+                  {inviteLoading ? "Working..." : "Join Household by Invite"}
+                </button>
+              </div>
 
               <div style={{ marginTop: 12, color: "#7A867D", fontSize: 13 }}>
                 Current household: <strong>{householdId}</strong>
