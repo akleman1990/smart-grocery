@@ -380,6 +380,8 @@ const styles = {
     letterSpacing: "-0.02em",
   } as const,
 };
+  
+export default function App() {
   const [householdId, setHouseholdId] = useState(() => {
     const saved = localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
     return saved?.trim() || DEFAULT_HOUSEHOLD_ID;
@@ -391,7 +393,6 @@ const styles = {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-export default function App() {
  const [dishes, setDishes] = useState<Dish[]>([]);
 
 const [grocery, setGrocery] = useState<Ingredient[]>(() => {
@@ -432,17 +433,17 @@ const [grocery, setGrocery] = useState<Ingredient[]>(() => {
   }, [householdId]);
 useEffect(() => {
   setDoc(
-    sharedGroceryDocRef,
-    { householdId: householdId grocery: [], dishes: [] },
-    { merge: true }
-  ).catch((error) => {
-    console.error("Failed to initialize household document:", error);
-  });
+  sharedGroceryDocRef,
+  { householdId: householdId, grocery: [], dishes: [] },
+  { merge: true }
+).catch((error) => {
+  console.error("Failed to initialize household document:", error);
+});
 
   const unsubscribe = subscribeToSharedGroceryList();
 
   return () => unsubscribe();
-}, }, [sharedGroceryDocRef, householdId]);
+}, [sharedGroceryDocRef, householdId]);
 useEffect(() => {
   localStorage.setItem(HOUSEHOLD_STORAGE_KEY, householdId);
 }, [householdId]);
@@ -524,12 +525,11 @@ async function saveSharedGroceryList(showMessage = true) {
   await setDoc(
   sharedGroceryDocRef,
   {
-   householdId: householdId
+    householdId: householdId,
     grocery: cleanedGrocery,
   },
   { merge: true }
 );
-
     if (showMessage) {
       setStatusMessage("Shared grocery list saved.");
     }
@@ -561,14 +561,14 @@ async function saveSharedDishes(showMessage = true, nextDishes?: Dish[]) {
       })),
     }));
 
-    await setDoc(
-      sharedGroceryDocRef,
-      {
-        householdId: householdId
-        dishes: cleanedDishes,
-      },
-      { merge: true }
-    );
+   await setDoc(
+  sharedGroceryDocRef,
+  {
+    householdId: householdId,
+    dishes: cleanedDishes,
+  },
+  { merge: true }
+);
 
     if (showMessage) {
       setStatusMessage("Shared dishes saved.");
