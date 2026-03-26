@@ -403,7 +403,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [householdInput, setHouseholdInput] = useState(DEFAULT_HOUSEHOLD_ID);
+  
     const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [currentInviteCode, setCurrentInviteCode] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -486,7 +486,7 @@ useEffect(() => {
     if (!nextUser) {
       setUser(null);
       setHouseholdId(DEFAULT_HOUSEHOLD_ID);
-      setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
+      
       setGrocery([]);
       setDishes([]);
       setSelectedDish(null);
@@ -538,12 +538,12 @@ useEffect(() => {
       );
 
       setHouseholdId(nextHouseholdId);
-      setHouseholdInput(nextHouseholdId);
+      
       setHouseholdReady(true);
     } catch (error) {
       console.error("Failed to load user household:", error);
       setHouseholdId(DEFAULT_HOUSEHOLD_ID);
-      setHouseholdInput(DEFAULT_HOUSEHOLD_ID);
+      
       setHouseholdReady(true);
       setStatusMessage("Could not load your saved household.");
     } finally {
@@ -571,16 +571,50 @@ useEffect(() => {
   function bumpAnimation() {
     setAnimateKey((v) => v + 1);
   }
-function copyHouseholdId() {
-  navigator.clipboard.writeText(householdId);
-  setStatusMessage("Household ID copied.");
-}
-function generateHouseholdId() {
+
+async function generateHouseholdId() {
+  if (!user) {
+    setStatusMessage("You must be signed in.");
+    return;
+  }
+
   const random = Math.random().toString(36).substring(2, 8);
   const newId = `household-${random}`;
 
-  setHouseholdInput(newId);
-  setStatusMessage("New household ID generated. Click Save Household to use it.");
+  try {
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        email: user.email ?? "",
+        householdId: newId,
+      },
+      { merge: true }
+    );
+
+    await setDoc(
+      doc(db, "households", newId),
+      {
+        householdId: newId,
+        users: arrayUnion(user.uid),
+      },
+      { merge: true }
+    );
+
+    setHouseholdId(newId);
+    
+    setCurrentInviteCode("");
+    setInviteCodeInput("");
+    setGrocery([]);
+    setDishes([]);
+    setSelectedDish(null);
+    setSelectedIngredientKeys([]);
+    setCollapsedCategories({});
+    setSettingsOpen(false);
+    setStatusMessage("New household created.");
+  } catch (error) {
+    console.error("Failed to create household:", error);
+    setStatusMessage("Could not create new household.");
+  }
 }
 async function generateInviteCode() {
   if (!user) {
@@ -771,57 +805,7 @@ setPassword("");
     setStatusMessage("Could not sign out.");
   }
 }
-  async function applyHouseholdIdChange() {
-  if (!user) {
-    setStatusMessage("You must be signed in.");
-    return;
-  }
-
-  const nextId = householdInput.trim();
-
-  if (!nextId) {
-    setStatusMessage("Household ID cannot be empty.");
-    return;
-  }
-
-  if (nextId === householdId) {
-    setSettingsOpen(false);
-    setStatusMessage("Already using this household.");
-    return;
-  }
-
-  try {
-    await setDoc(
-      doc(db, "users", user.uid),
-      {
-        email: user.email ?? "",
-        householdId: nextId,
-      },
-      { merge: true }
-    );
-
-    await setDoc(
-      doc(db, "households", nextId),
-      {
-        householdId: nextId,
-        users: arrayUnion(user.uid),
-      },
-      { merge: true }
-    );
-
-    setHouseholdId(nextId);
-    setGrocery([]);
-    setDishes([]);
-    setSelectedDish(null);
-    setSelectedIngredientKeys([]);
-    setCollapsedCategories({});
-    setSettingsOpen(false);
-    setStatusMessage("Household updated.");
-  } catch (error) {
-    console.error("Failed to update household:", error);
-    setStatusMessage("Could not update household.");
-  }
-}
+  
 async function joinHouseholdByInvite() {
   if (!user) {
     setStatusMessage("You must be signed in.");
@@ -874,7 +858,7 @@ async function joinHouseholdByInvite() {
     );
 
     setHouseholdId(invitedHouseholdId);
-    setHouseholdInput(invitedHouseholdId);
+    
     setInviteCodeInput("");
     setCurrentInviteCode("");
     setGrocery([]);
@@ -1295,7 +1279,7 @@ return (
       placeItems: "center",
     }}
     onClick={() => {
-      setHouseholdInput(householdId);
+      
       setSettingsOpen(true);
     }}
     aria-label="Open household settings"
@@ -1638,23 +1622,30 @@ return (
               </h2>
 
               <p style={{ marginTop: 0, color: "#65756C" }}>
-                Manage your household and invite other signed-in users to join it.
+                Create a new household, invite another signed-in user, or join a household with an invite code.
               </p>
+
 
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
                 Current Household ID
               </label>
 
               <div style={{ display: "grid", gap: 10 }}>
-                <input
-                  style={{ ...styles.input, width: "100%" }}
-                  value={householdInput}
-                  onChange={(e) => setHouseholdInput(e.target.value)}
-                  placeholder="Enter household ID"
-                />
+                <div
+                  style={{
+                    ...styles.input,
+                    minHeight: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    fontWeight: 700,
+                    background: "#F8F5F1",
+                  }}
+                >
+                  {householdId}
+                </div>
 
                 <p style={{ margin: "0", fontSize: 12, color: "#7A867D" }}>
-                  You can still manually switch households here, but invite codes are the preferred way to join a shared household.
+                  Household switching is now invite-based. To start fresh, create a new household below.
                 </p>
 
                 <button
@@ -1662,18 +1653,9 @@ return (
                   style={{ ...styles.secondaryButton, width: "100%" }}
                   onClick={generateHouseholdId}
                 >
-                  Generate New Household ID
-                </button>
-
-                <button
-                  type="button"
-                  style={{ ...styles.secondaryButton, width: "100%" }}
-                  onClick={copyHouseholdId}
-                >
-                  Copy Current Household ID
+                  Create New Household
                 </button>
               </div>
-
               <div style={{ marginTop: 20 }}>
                 <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
                   Invite Another User
@@ -1734,17 +1716,10 @@ return (
 
               <div style={{ ...styles.actionWrap, marginTop: 18 }}>
                 <button
-                  style={{ ...styles.button, flex: 1 }}
-                  onClick={applyHouseholdIdChange}
-                >
-                  Save Household
-                </button>
-
-                <button
                   style={{ ...styles.secondaryButton, flex: 1 }}
                   onClick={() => setSettingsOpen(false)}
                 >
-                  Cancel
+                  Close
                 </button>
               </div>
             </div>
