@@ -509,7 +509,13 @@ useEffect(() => {
         ? String(userSnap.data().householdId ?? "").trim()
         : "";
 
-      const nextHouseholdId = savedHouseholdId || DEFAULT_HOUSEHOLD_ID;
+      const isFirstTimeUser = !userSnap.exists();
+
+      const nextHouseholdId =
+        savedHouseholdId ||
+        (isFirstTimeUser
+          ? `household-${nextUser.uid.slice(0, 8)}`
+          : DEFAULT_HOUSEHOLD_ID);
 
       if (!userSnap.exists() || !savedHouseholdId) {
         await setDoc(
@@ -850,19 +856,19 @@ async function joinHouseholdByInvite() {
     }
 
     await setDoc(
-      doc(db, "households", invitedHouseholdId),
+      doc(db, "users", user.uid),
       {
+        email: user.email ?? "",
         householdId: invitedHouseholdId,
-        users: arrayUnion(user.uid),
       },
       { merge: true }
     );
 
     await setDoc(
-      doc(db, "users", user.uid),
+      doc(db, "households", invitedHouseholdId),
       {
-        email: user.email ?? "",
         householdId: invitedHouseholdId,
+        users: arrayUnion(user.uid),
       },
       { merge: true }
     );
